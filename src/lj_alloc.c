@@ -31,7 +31,7 @@
 #include "lj_def.h"
 #include "lj_arch.h"
 #include "lj_alloc.h"
-
+#include "jit_allocator.h"
 #ifndef LUAJIT_USE_SYSMALLOC
 
 #define MAX_SIZE_T		(~(size_t)0)
@@ -125,7 +125,7 @@
 /* Undocumented, but hey, that's what we all love so much about Windows. */
 typedef long (*PNTAVM)(HANDLE handle, void **addr, ULONG zbits,
 		       size_t *size, ULONG alloctype, ULONG prot);
-static PNTAVM ntavm;
+ PNTAVM ntavm;
 
 /* Number of top bits of the lower 32 bits of an address that must be zero.
 ** Apparently 0 gives us full 64 bit addresses and 1 gives us the lower 2GB.
@@ -136,35 +136,40 @@ static void init_mmap(void)
 {
   ntavm = (PNTAVM)GetProcAddress(GetModuleHandleA("ntdll.dll"),
 				 "NtAllocateVirtualMemory");
+  jit_allocator_init();
 }
 #define INIT_MMAP()	init_mmap()
 
 /* Win64 32 bit MMAP via NtAllocateVirtualMemory. */
-static void *CALL_MMAP(size_t size)
+static LJ_AINLINE void *CALL_MMAP(size_t size)
 {
   DWORD olderr = GetLastError();
-  void *ptr = NULL;
-  long st = ntavm(INVALID_HANDLE_VALUE, &ptr, NTAVM_ZEROBITS, &size,
-		  MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+  void* ptr = jit_mmap(size);
   SetLastError(olderr);
-  return st == 0 ? ptr : MFAIL;
+  return ptr;
 }
 
 /* For direct MMAP, use MEM_TOP_DOWN to minimize interference */
-static void *DIRECT_MMAP(size_t size)
+static LJ_AINLINE void *direct_mmap(size_t size)
 {
   DWORD olderr = GetLastError();
-  void *ptr = NULL;
-  long st = ntavm(INVALID_HANDLE_VALUE, &ptr, NTAVM_ZEROBITS, &size,
-		  MEM_RESERVE|MEM_COMMIT|MEM_TOP_DOWN, PAGE_READWRITE);
+  void* ptr = jit_mmap(size);
   SetLastError(olderr);
-  return st == 0 ? ptr : MFAIL;
+  return ptr;
 }
 
+/* This function supports releasing coalesed segments */
+static LJ_AINLINE int CALL_MUNMAP(void *ptr, size_t size)
+{
+  DWORD olderr = GetLastError();
+  jit_destroy(ptr, size);  
+  SetLastError(olderr);
+  return 0;  
+}
 #else
 
 /* Win32 MMAP via VirtualAlloc */
-static void *CALL_MMAP(size_t size)
+static LJ_AINLINE void *CALL_MMAP(size_t size)
 {
   DWORD olderr = GetLastError();
   void *ptr = LJ_WIN_VALLOC(0, size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
@@ -173,7 +178,7 @@ static void *CALL_MMAP(size_t size)
 }
 
 /* For direct MMAP, use MEM_TOP_DOWN to minimize interference */
-static void *DIRECT_MMAP(size_t size)
+static LJ_AINLINE void *direct_mmap(size_t size)
 {
   DWORD olderr = GetLastError();
   void *ptr = LJ_WIN_VALLOC(0, size, MEM_RESERVE|MEM_COMMIT|MEM_TOP_DOWN,
@@ -181,11 +186,7 @@ static void *DIRECT_MMAP(size_t size)
   SetLastError(olderr);
   return ptr ? ptr : MFAIL;
 }
-
-#endif
-
-/* This function supports releasing coalesed segments */
-static int CALL_MUNMAP(void *ptr, size_t size)
+static LJ_AINLINE int CALL_MUNMAP(void *ptr, size_t size)
 {
   DWORD olderr = GetLastError();
   MEMORY_BASIC_INFORMATION minfo;
@@ -204,6 +205,13 @@ static int CALL_MUNMAP(void *ptr, size_t size)
   SetLastError(olderr);
   return 0;
 }
+
+#endif
+
+#define DIRECT_MMAP(size)	direct_mmap(size)
+
+/* This function supports releasing coalesed segments */
+
 
 #elif LJ_ALLOC_MMAP
 
