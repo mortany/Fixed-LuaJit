@@ -1,6 +1,6 @@
 /*
 ** String library.
-** Copyright (C) 2005-2020 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2021 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Major portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2008 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -714,7 +714,7 @@ again:
 	lj_strfmt_putfchar(sb, sf, lj_lib_checkint(L, arg));
 	break;
       case STRFMT_PTR:  /* No formatting. */
-	lj_strfmt_putptr(sb, lj_obj_ptr(L->base+arg-1));
+	lj_strfmt_putptr(sb, lj_obj_ptr(G(L), L->base+arg-1));
 	break;
       default:
 	lj_assertL(0, "bad string format type");

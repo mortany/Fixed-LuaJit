@@ -1,6 +1,6 @@
 /*
 ** Base and coroutine library.
-** Copyright (C) 2005-2020 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2021 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Major portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2011 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -504,8 +504,8 @@ LJLIB_CF(print)
     lua_gettable(L, LUA_GLOBALSINDEX);
     tv = L->top-1;
   }
-  shortcut = (tvisfunc(tv) && funcV(tv)->c.ffid == FF_tostring)
-	      && !gcrefu(basemt_it(G(L), LJ_TNUMX));
+  shortcut = (tvisfunc(tv) && funcV(tv)->c.ffid == FF_tostring) &&
+	     !gcrefu(basemt_it(G(L), LJ_TNUMX));
   for (i = 0; i < nargs; i++) {
     cTValue *o = &L->base[i];
     const char *str;

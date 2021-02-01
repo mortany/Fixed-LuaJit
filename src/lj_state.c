@@ -1,6 +1,6 @@
 /*
 ** State and stack handling.
-** Copyright (C) 2005-2020 Mike Pall. See Copyright Notice in luajit.h
+** Copyright (C) 2005-2021 Mike Pall. See Copyright Notice in luajit.h
 **
 ** Portions taken verbatim or adapted from the Lua interpreter.
 ** Copyright (C) 1994-2008 Lua.org, PUC-Rio. See Copyright Notice in lua.h
@@ -174,6 +174,12 @@ static void close_state(lua_State *L)
   lj_str_freetab(g);
   lj_buf_free(g, &g->tmpbuf);
   lj_mem_freevec(g, tvref(L->stack), L->stacksize, TValue);
+#if LJ_64
+  if (mref(g->gc.lightudseg, uint32_t)) {
+    MSize segnum = g->gc.lightudnum ? (2 << lj_fls(g->gc.lightudnum)) : 2;
+    lj_mem_freevec(g, mref(g->gc.lightudseg, uint32_t), segnum, uint32_t);
+  }
+#endif
   lj_assertG(g->gc.total == sizeof(GG_State),
 	     "memory leak of %lld bytes",
 	     (long long)(g->gc.total - sizeof(GG_State)));

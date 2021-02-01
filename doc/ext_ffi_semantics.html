@@ -3,7 +3,7 @@
 <head>
 <title>FFI Semantics</title>
 <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
-<meta name="Copyright" content="Copyright (C) 2005-2020">
+<meta name="Copyright" content="Copyright (C) 2005-2021">
 <meta name="Language" content="en">
 <link rel="stylesheet" type="text/css" href="bluequad.css" media="screen">
 <link rel="stylesheet" type="text/css" href="bluequad-print.css" media="print">
@@ -672,7 +672,7 @@ through unions is explicitly detected and allowed.
 <a href="ext_ffi_api.html#ffi_new">constructor</a>. This is equivalent
 to <tt>ffi.new(ct, ...)</tt>, unless a <tt>__new</tt> metamethod is
 defined. The <tt>__new</tt> metamethod is called with the ctype object
-plus any other arguments passed to the contructor. Note that you have to
+plus any other arguments passed to the constructor. Note that you have to
 use <tt>ffi.new</tt> inside of it, since calling <tt>ct(...)</tt> would
 cause infinite recursion.</li>
 
@@ -858,7 +858,7 @@ place of a type, you'd need to use <tt>ffi.typeof("int")</tt> instead.
 <p>
 The main use for parameterized types are libraries implementing abstract
 data types
-(<a href="https://www.freelists.org/post/luajit/ffi-type-of-pointer-to,8">example</a>),
+(<a href="https://www.freelists.org/post/luajit/ffi-type-of-pointer-to,8"><span class="ext">&raquo;</span>&nbsp;example</a>),
 similar to what can be achieved with C++ template metaprogramming.
 Another use case are derived types of anonymous structs, which avoids
 pollution of the global struct namespace.
@@ -1246,7 +1246,7 @@ compiled.</li>
 </div>
 <div id="foot">
 <hr class="hide">
-Copyright &copy; 2005-2020
+Copyright &copy; 2005-2021
 <span class="noprint">
 &middot;
 <a href="contact.html">Contact</a>
