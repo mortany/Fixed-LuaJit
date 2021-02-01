@@ -32,6 +32,7 @@
 #include "lj_arch.h"
 #include "lj_alloc.h"
 #include "lj_prng.h"
+#include "xr_alloc.h"
 
 #ifndef LUAJIT_USE_SYSMALLOC
 
@@ -126,7 +127,7 @@
 /* Undocumented, but hey, that's what we all love so much about Windows. */
 typedef long (*PNTAVM)(HANDLE handle, void **addr, ULONG_PTR zbits,
 		       size_t *size, ULONG alloctype, ULONG prot);
-static PNTAVM ntavm;
+PNTAVM ntavm;
 
 /* Number of top bits of the lower 32 bits of an address that must be zero.
 ** Apparently 0 gives us full 64 bit addresses and 1 gives us the lower 2GB.
@@ -137,6 +138,7 @@ static void init_mmap(void)
 {
   ntavm = (PNTAVM)GetProcAddress(GetModuleHandleA("ntdll.dll"),
 				 "NtAllocateVirtualMemory");
+	XR_INIT();			 
 }
 #define INIT_MMAP()	init_mmap()
 
@@ -144,22 +146,27 @@ static void init_mmap(void)
 static void *mmap_plain(size_t size)
 {
   DWORD olderr = GetLastError();
-  void *ptr = NULL;
-  long st = ntavm(INVALID_HANDLE_VALUE, &ptr, NTAVM_ZEROBITS, &size,
-		  MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
+  void* ptr = XR_MMAP(size);
   SetLastError(olderr);
-  return st == 0 ? ptr : MFAIL;
+  return ptr;
 }
 
 /* For direct MMAP, use MEM_TOP_DOWN to minimize interference */
 static void *direct_mmap(size_t size)
 {
   DWORD olderr = GetLastError();
-  void *ptr = NULL;
-  long st = ntavm(INVALID_HANDLE_VALUE, &ptr, NTAVM_ZEROBITS, &size,
-		  MEM_RESERVE|MEM_COMMIT|MEM_TOP_DOWN, PAGE_READWRITE);
+  void* ptr = XR_MMAP(size);
   SetLastError(olderr);
-  return st == 0 ? ptr : MFAIL;
+  return ptr;
+}
+
+/* This function supports releasing coalesed segments */
+static int CALL_MUNMAP(void *ptr, size_t size)
+{
+  DWORD olderr = GetLastError();
+  XR_DESTROY(ptr, size);  
+  SetLastError(olderr);
+  return 0;  
 }
 
 #else
@@ -183,7 +190,7 @@ static void *direct_mmap(size_t size)
   return ptr ? ptr : MFAIL;
 }
 
-#endif
+
 
 #define CALL_MMAP(prng, size)	mmap_plain(size)
 #define DIRECT_MMAP(prng, size)	direct_mmap(size)
@@ -208,6 +215,7 @@ static int CALL_MUNMAP(void *ptr, size_t size)
   SetLastError(olderr);
   return 0;
 }
+#endif
 
 #elif LJ_ALLOC_MMAP
 
